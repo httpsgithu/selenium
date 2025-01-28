@@ -24,17 +24,23 @@ module Selenium
         include ProfileHelper
 
         VALID_PREFERENCE_TYPES = [TrueClass, FalseClass, Integer, Float, String].freeze
-
-        DEFAULT_PREFERENCES = {
-          "browser.newtabpage.enabled" => false,
-          "browser.startup.homepage" => "about:blank",
-          "browser.usedOnWindows10.introURL" => "about:blank",
-          "network.captive-portal-service.enabled" => false,
-          "security.csp.enable" => false
+        WEBDRIVER_PREFS = {
+          port: 'webdriver_firefox_port',
+          log_file: 'webdriver.log.file'
         }.freeze
 
-        attr_reader   :name, :log_file
-        attr_writer   :secure_ssl, :load_no_focus_lib
+        DEFAULT_PREFERENCES = {
+          'browser.newtabpage.enabled' => false,
+          'browser.startup.homepage' => 'about:blank',
+          'browser.usedOnWindows10.introURL' => 'about:blank',
+          'network.captive-portal-service.enabled' => false,
+          'security.csp.enable' => false
+        }.freeze
+
+        LOCK_FILES = %w[.parentlock parent.lock lock].freeze
+
+        attr_reader :name, :log_file
+        attr_writer :secure_ssl, :load_no_focus_lib
 
         class << self
           def ini
@@ -96,7 +102,7 @@ module Selenium
             raise TypeError, "expected one of #{VALID_PREFERENCE_TYPES.inspect}, got #{value.inspect}:#{value.class}"
           end
 
-          if value.is_a?(String) && stringified?(value)
+          if value.is_a?(String) && Util.stringified?(value)
             raise ArgumentError, "preference values must be plain strings: #{key.inspect} => #{value.inspect}"
           end
 
@@ -143,7 +149,7 @@ module Selenium
           end
         end
 
-        alias_method :as_json, :encoded
+        alias as_json encoded
 
         private
 
@@ -160,7 +166,7 @@ module Selenium
           destination = File.join(directory, 'extensions')
 
           @extensions.each do |name, extension|
-            WebDriver.logger.debug({extenstion: name}.inspect)
+            WebDriver.logger.debug({extension: name}.inspect, id: :firefox_profile)
             extension.write_to(destination)
           end
         end
@@ -176,7 +182,7 @@ module Selenium
         end
 
         def delete_lock_files(directory)
-          %w[.parentlock parent.lock].each do |name|
+          LOCK_FILES.each do |name|
             FileUtils.rm_f File.join(directory, name)
           end
         end
@@ -204,8 +210,8 @@ module Selenium
           File.read(path).split("\n").each do |line|
             next unless line =~ /user_pref\("([^"]+)"\s*,\s*(.+?)\);/
 
-            key = Regexp.last_match(1).strip
-            value = Regexp.last_match(2).strip
+            key = Regexp.last_match(1)&.strip
+            value = Regexp.last_match(2)&.strip
 
             # wrap the value in an array to make it a valid JSON string.
             prefs[key] = JSON.parse("[#{value}]").first
@@ -221,11 +227,9 @@ module Selenium
             end
           end
         end
+      end
 
-        def stringified?(str)
-          /^".*"$/.match?(str)
-        end
-      end # Profile
+      # Profile
     end # Firefox
   end # WebDriver
 end # Selenium

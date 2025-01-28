@@ -17,22 +17,22 @@
 
 'use strict'
 
-const assert = require('assert')
-const http = require('http')
+const assert = require('node:assert')
+const http = require('node:http')
 
-const error = require('../../lib/error')
-const util = require('../../http/util')
+const error = require('selenium-webdriver/lib/error')
+const util = require('selenium-webdriver/http/util')
 
 describe('selenium-webdriver/http/util', function () {
-  var server, baseUrl
+  let server, baseUrl
 
-  var status, value, responseCode
+  let status, value, responseCode
 
   function startServer(done) {
     if (server) return done()
 
     server = http.createServer(function (_req, res) {
-      var data = JSON.stringify({ status: status, value: value })
+      const data = JSON.stringify({ status: status, value: value })
       res.writeHead(responseCode, {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Length': Buffer.byteLength(data, 'utf8'),
@@ -43,7 +43,7 @@ describe('selenium-webdriver/http/util', function () {
     server.listen(0, '127.0.0.1', function (e) {
       if (e) return done(e)
 
-      var addr = server.address()
+      const addr = server.address()
       baseUrl = 'http://' + addr.address + ':' + addr.port
       done()
     })
@@ -81,7 +81,7 @@ describe('selenium-webdriver/http/util', function () {
           assert.ok(err instanceof error.WebDriverError)
           assert.strictEqual(err.code, error.WebDriverError.code)
           assert.strictEqual(err.message, value)
-        }
+        },
       )
     })
 
@@ -96,7 +96,7 @@ describe('selenium-webdriver/http/util', function () {
           function () {
             // Expected.
             done()
-          }
+          },
         )
       })
     })
@@ -112,7 +112,7 @@ describe('selenium-webdriver/http/util', function () {
           assert.ok(err instanceof error.WebDriverError)
           assert.strictEqual(err.code, error.WebDriverError.code)
           assert.strictEqual(err.message, value)
-        }
+        },
       )
     })
   })
@@ -132,20 +132,20 @@ describe('selenium-webdriver/http/util', function () {
         function () {
           throw Error('Expected to time out')
         },
-        function () {}
+        function () {},
       )
     })
 
     it('can cancel wait', function () {
       status = 1
       let cancel = new Promise((resolve) => {
-        setTimeout((_) => resolve(), 50)
+        setTimeout(() => resolve(), 50)
       })
       return util.waitForServer(baseUrl, 200, cancel).then(
         () => {
           throw Error('Did not expect to succeed!')
         },
-        (e) => assert.ok(e instanceof util.CancellationError)
+        (e) => assert.ok(e instanceof util.CancellationError),
       )
     })
   })
@@ -165,7 +165,7 @@ describe('selenium-webdriver/http/util', function () {
 
       return util.waitForUrl(baseUrl, 50).then(
         () => assert.fail('Expected to time out'),
-        () => true
+        () => true,
       )
     })
 
@@ -180,7 +180,7 @@ describe('selenium-webdriver/http/util', function () {
             },
             function () {
               resolve()
-            }
+            },
           )
         })
       })
@@ -189,13 +189,13 @@ describe('selenium-webdriver/http/util', function () {
     it('can cancel wait', function () {
       responseCode = 404
       let cancel = new Promise((resolve) => {
-        setTimeout((_) => resolve(), 50)
+        setTimeout(() => resolve(), 50)
       })
       return util.waitForUrl(baseUrl, 200, cancel).then(
         () => {
           throw Error('Did not expect to succeed!')
         },
-        (e) => assert.ok(e instanceof util.CancellationError)
+        (e) => assert.ok(e instanceof util.CancellationError),
       )
     })
   })

@@ -33,7 +33,8 @@ const slotStereotype: StereotypeInfo = {
   browserName: 'chrome',
   browserVersion: 'v. 88',
   slotCount: 12,
-  rawData: []
+  rawData: ['stereotype: {"browserName": "chrome"}'],
+  platformName: 'macos'
 }
 
 const node: NodeInfo = {
@@ -57,10 +58,10 @@ it('renders basic node information', () => {
     `Max. Concurrency: ${node.maxSession}`)).toBeInTheDocument()
 })
 
-it('renders detailed node information', () => {
-  render(<Node node={node} />)
-  const leftClick = { button: 0 }
-  userEvent.click(screen.getByRole('button'), leftClick)
+it('renders detailed node information', async () => {
+  render(<Node node={node}/>)
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button'))
   expect(screen.getByText(`Node Id: ${node.id}`)).toBeInTheDocument()
   expect(
     screen.getByText(`Total slots: ${node.slotCount}`)).toBeInTheDocument()

@@ -17,7 +17,7 @@
 
 'use strict'
 
-const childProcess = require('child_process')
+const childProcess = require('node:child_process')
 
 /**
  * Options for configuring an executed command.
@@ -120,7 +120,7 @@ class Command {
  * @param {Options=} opt_options The command options.
  * @return {!Command} The launched command.
  */
-module.exports = function exec(command, opt_options) {
+function exec(command, opt_options) {
   const options = opt_options || {}
 
   let proc = childProcess.spawn(command, options.args || [], {
@@ -133,11 +133,15 @@ module.exports = function exec(command, opt_options) {
   proc.unref()
   process.once('exit', onProcessExit)
 
-  const result = new Promise((resolve) => {
+  const result = new Promise((resolve, reject) => {
     proc.once('exit', (code, signal) => {
       proc = null
       process.removeListener('exit', onProcessExit)
       resolve(new Result(code, signal))
+    })
+
+    proc.once('error', (err) => {
+      reject(err)
     })
   })
   return new Command(result, killCommand)
@@ -157,6 +161,9 @@ module.exports = function exec(command, opt_options) {
 
 // Exported to improve generated API documentation.
 
-module.exports.Command = Command
-module.exports.Options = Options
-module.exports.Result = Result
+module.exports = {
+  Command,
+  Options,
+  Result,
+  exec,
+}

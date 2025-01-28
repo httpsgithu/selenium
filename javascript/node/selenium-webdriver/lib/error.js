@@ -17,6 +17,8 @@
 
 'use strict'
 
+const { isObject } = require('./util')
+
 /**
  * The base WebDriver error type. This error type is only used directly when a
  * more appropriate category is not defined for the offending error.
@@ -36,6 +38,16 @@ class WebDriverError extends Error {
      * @type {string}
      */
     this.remoteStacktrace = ''
+  }
+}
+
+/**
+ * Indicates the shadow root is no longer attached to the DOM
+ */
+class DetachedShadowRootError extends WebDriverError {
+  /** @param {string=} opt_error the error message, if any. */
+  constructor(opt_error) {
+    super(opt_error)
   }
 }
 
@@ -195,6 +207,16 @@ class NoSuchCookieError extends WebDriverError {
  * parameters.
  */
 class NoSuchElementError extends WebDriverError {
+  /** @param {string=} opt_error the error message, if any. */
+  constructor(opt_error) {
+    super(opt_error)
+  }
+}
+
+/**
+ * A ShadowRoot could not be located on the element
+ */
+class NoSuchShadowRootError extends WebDriverError {
   /** @param {string=} opt_error the error message, if any. */
   constructor(opt_error) {
     super(opt_error)
@@ -420,6 +442,7 @@ const LEGACY_ERROR_CODE_TO_TYPE = new Map([
 
 const ERROR_CODE_TO_TYPE = new Map([
   ['unknown error', WebDriverError],
+  ['detached shadow root', DetachedShadowRootError],
   ['element click intercepted', ElementClickInterceptedError],
   ['element not interactable', ElementNotInteractableError],
   ['element not selectable', ElementNotSelectableError],
@@ -436,6 +459,7 @@ const ERROR_CODE_TO_TYPE = new Map([
   ['no such cookie', NoSuchCookieError],
   ['no such element', NoSuchElementError],
   ['no such frame', NoSuchFrameError],
+  ['no such shadow root', NoSuchShadowRootError],
   ['no such window', NoSuchWindowError],
   ['script timeout', ScriptTimeoutError],
   ['session not created', SessionNotCreatedError],
@@ -460,10 +484,7 @@ ERROR_CODE_TO_TYPE.forEach((value, key) => {
  */
 function encodeError(err) {
   let type = WebDriverError
-  if (
-    err instanceof WebDriverError &&
-    TYPE_TO_ERROR_CODE.has(err.constructor)
-  ) {
+  if (err instanceof WebDriverError && TYPE_TO_ERROR_CODE.has(err.constructor)) {
     type = err.constructor
   }
 
@@ -471,23 +492,6 @@ function encodeError(err) {
 
   let code = /** @type {string} */ (TYPE_TO_ERROR_CODE.get(type))
   return { error: code, message: message }
-}
-
-/**
- * Checks a response object from a server that adheres to the W3C WebDriver
- * protocol.
- * @param {*} data The response data to check.
- * @return {*} The response data if it was not an encoded error.
- * @throws {WebDriverError} the decoded error, if present in the data object.
- * @deprecated Use {@link #throwDecodedError(data)} instead.
- * @see https://w3c.github.io/webdriver/webdriver-spec.html#protocol
- */
-function checkResponse(data) {
-  if (data && typeof data.error === 'string') {
-    let ctor = ERROR_CODE_TO_TYPE.get(data.error) || WebDriverError
-    throw new ctor(data.message)
-  }
-  return data
 }
 
 /**
@@ -500,7 +504,7 @@ function checkResponse(data) {
  * @see https://w3c.github.io/webdriver/webdriver-spec.html#protocol
  */
 function isErrorResponse(data) {
-  return data && typeof data === 'object' && typeof data.error === 'string'
+  return isObject(data) && typeof data.error === 'string'
 }
 
 /**
@@ -534,16 +538,10 @@ function throwDecodedError(data) {
  */
 function checkLegacyResponse(responseObj) {
   // Handle the legacy Selenium error response format.
-  if (
-    responseObj &&
-    typeof responseObj === 'object' &&
-    typeof responseObj['status'] === 'number' &&
-    responseObj['status'] !== 0
-  ) {
-    let status = responseObj['status']
-    let ctor = LEGACY_ERROR_CODE_TO_TYPE.get(status) || WebDriverError
+  if (isObject(responseObj) && typeof responseObj.status === 'number' && responseObj.status !== 0) {
+    const { status, value } = responseObj
 
-    let value = responseObj['value']
+    let ctor = LEGACY_ERROR_CODE_TO_TYPE.get(status) || WebDriverError
 
     if (!value || typeof value !== 'object') {
       throw new ctor(value + '')
@@ -569,6 +567,7 @@ module.exports = {
   ErrorCode,
 
   WebDriverError,
+  DetachedShadowRootError,
   ElementClickInterceptedError,
   ElementNotInteractableError,
   ElementNotSelectableError,
@@ -584,6 +583,7 @@ module.exports = {
   NoSuchCookieError,
   NoSuchElementError,
   NoSuchFrameError,
+  NoSuchShadowRootError,
   NoSuchSessionError,
   NoSuchWindowError,
   ScriptTimeoutError,
@@ -596,8 +596,6 @@ module.exports = {
   UnknownCommandError,
   UnknownMethodError,
   UnsupportedOperationError,
-
-  checkResponse,
   checkLegacyResponse,
   encodeError,
   isErrorResponse,

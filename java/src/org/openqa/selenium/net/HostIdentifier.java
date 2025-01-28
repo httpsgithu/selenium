@@ -17,7 +17,7 @@
 
 package org.openqa.selenium.net;
 
-import org.openqa.selenium.Platform;
+import static java.util.logging.Level.WARNING;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -26,18 +26,25 @@ import java.net.NetworkInterface;
 import java.nio.charset.Charset;
 import java.util.Enumeration;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+import org.openqa.selenium.Platform;
 
+@NullMarked
 public class HostIdentifier {
-  private static final String HOST_NAME;
-  private static final String HOST_ADDRESS;
+  private static final Logger LOG = Logger.getLogger(HostIdentifier.class.getName());
 
-  static {
+  private static volatile @Nullable String hostName;
+  private static volatile @Nullable String hostAddress;
+
+  private static String resolveHostName() {
     // Ideally, we'd use InetAddress.getLocalHost, but this does a reverse DNS lookup. On Windows
     // and Linux this is apparently pretty fast, so we don't get random hangs. On OS X it's
     // amazingly slow. That's less than ideal. Figure things out and cache.
-    String host = System.getenv("HOSTNAME");  // Most OSs
+    String host = System.getenv("HOSTNAME"); // Most OSs
     if (host == null) {
-      host = System.getenv("COMPUTERNAME");  // Windows
+      host = System.getenv("COMPUTERNAME"); // Windows
     }
     if (host == null && Platform.getCurrent().is(Platform.MAC)) {
       try {
@@ -49,59 +56,75 @@ public class HostIdentifier {
           process.waitFor(2, TimeUnit.SECONDS);
         }
         if (process.exitValue() == 0) {
-          try (InputStreamReader isr = new InputStreamReader(process.getInputStream(), Charset.defaultCharset());
-               BufferedReader reader = new BufferedReader(isr)) {
+          try (InputStreamReader isr =
+                  new InputStreamReader(process.getInputStream(), Charset.defaultCharset());
+              BufferedReader reader = new BufferedReader(isr)) {
             host = reader.readLine();
           }
         }
       } catch (InterruptedException e) {
+        LOG.log(WARNING, "Failed to resolve host name", e);
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
-      } catch (Exception e) {
+      } catch (Throwable e) {
         // fall through
+        LOG.log(WARNING, "Failed to resolve host name", e);
       }
     }
     if (host == null) {
       // Give up.
       try {
         host = InetAddress.getLocalHost().getHostName();
-      } catch (Exception e) {
-        host = "Unknown";  // At least we tried.
+      } catch (Throwable e) {
+        host = "Unknown"; // At least we tried.
+        LOG.log(WARNING, "Failed to resolve host name", e);
       }
     }
 
-    HOST_NAME = host;
+    return host;
+  }
 
+  private static String resolveHostAddress() {
     String address = null;
     // Now for the IP address. We're going to do silly shenanigans on OS X only.
     if (Platform.getCurrent().is(Platform.MAC)) {
       try {
         NetworkInterface en0 = NetworkInterface.getByName("en0");
-        Enumeration<InetAddress> addresses = en0.getInetAddresses();
-        if (addresses.hasMoreElements()) {
-          address = addresses.nextElement().getHostAddress();
+        if (en0 != null) {
+          Enumeration<InetAddress> addresses = en0.getInetAddresses();
+          if (addresses.hasMoreElements()) {
+            address = addresses.nextElement().getHostAddress();
+          }
         }
-      } catch (Exception e) {
+      } catch (Throwable e) {
         // Fall through and go the slow way.
+        LOG.log(WARNING, "Failed to resolve host address", e);
       }
     }
     if (address == null) {
       // Alright. I give up.
       try {
         address = InetAddress.getLocalHost().getHostAddress();
-      } catch (Exception e) {
+      } catch (Throwable e) {
         address = "Unknown";
+        LOG.log(WARNING, "Failed to resolve host address", e);
       }
     }
 
-    HOST_ADDRESS = address;
+    return address;
   }
 
-  public static String getHostName() {
-    return HOST_NAME;
+  public static synchronized String getHostName() {
+    if (hostName == null) {
+      hostName = resolveHostName();
+    }
+    return hostName;
   }
 
-  public static String getHostAddress() {
-    return HOST_ADDRESS;
+  public static synchronized String getHostAddress() {
+    if (hostAddress == null) {
+      hostAddress = resolveHostAddress();
+    }
+    return hostAddress;
   }
 }

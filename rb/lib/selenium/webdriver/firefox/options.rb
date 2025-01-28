@@ -25,11 +25,12 @@ module Selenium
 
         KEY = 'moz:firefoxOptions'
 
-        # see: https://firefox-source-docs.mozilla.org/testing/geckodriver/Capabilities.html
+        # see: https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
         CAPABILITIES = {binary: 'binary',
                         args: 'args',
                         log: 'log',
                         prefs: 'prefs',
+                        env: 'env',
                         android_package: 'androidPackage',
                         android_activity: 'androidActivity',
                         android_device_serial: 'androidDeviceSerial',
@@ -44,7 +45,7 @@ module Selenium
         #
         # @example
         #   options = Selenium::WebDriver::Firefox::Options.new(args: ['--host=127.0.0.1'])
-        #   driver = Selenium::WebDriver.for :firefox, capabilities: options
+        #   driver = Selenium::WebDriver.for :firefox, options: options
         #
         # @param [Hash] opts the pre-defined options to create the Firefox::Options with
         # @option opts [String] :binary Path to the Firefox executable to use
@@ -56,12 +57,17 @@ module Selenium
         #
 
         def initialize(log_level: nil, **opts)
-          @debugger_address = opts.delete(:debugger_address)
+          @debugger_address = opts.delete(:debugger_address) { true }
+          opts[:accept_insecure_certs] = true unless opts.key?(:accept_insecure_certs)
 
           super(**opts)
 
           @options[:args] ||= []
           @options[:prefs] ||= {}
+          # Firefox 129 onwards the CDP protocol will not be enabled by default. Setting this preference will enable it.
+          # https://fxdx.dev/deprecating-cdp-support-in-firefox-embracing-the-future-with-webdriver-bidi/.
+          @options[:prefs]['remote.active-protocols'] = 3
+          @options[:env] ||= {}
           @options[:log] ||= {level: log_level} if log_level
 
           process_profile(@options.delete(:profile))
@@ -94,18 +100,6 @@ module Selenium
 
         def add_preference(name, value)
           @options[:prefs][name] = value
-        end
-
-        #
-        # Run Firefox in headless mode.
-        #
-        # @example Enable headless mode
-        #   options = Selenium::WebDriver::Firefox::Options.new
-        #   options.headless!
-        #
-
-        def headless!
-          add_argument '-headless'
         end
 
         #
@@ -175,7 +169,7 @@ module Selenium
         end
 
         def camelize?(key)
-          key != "prefs"
+          key != 'prefs'
         end
       end # Options
     end # Firefox

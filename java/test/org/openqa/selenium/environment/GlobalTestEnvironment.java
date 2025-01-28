@@ -19,9 +19,7 @@ package org.openqa.selenium.environment;
 
 import java.util.function.Supplier;
 
-/**
- * Used to hold a TestEnvironment in a static class-level field.
- */
+/** Used to hold a TestEnvironment in a static class-level field. */
 public class GlobalTestEnvironment {
 
   private static TestEnvironment environment;
@@ -37,12 +35,8 @@ public class GlobalTestEnvironment {
   public static synchronized TestEnvironment getOrCreate(
       Supplier<TestEnvironment> startThisIfNothingIsAlreadyRunning) {
     if (environment == null) {
-      try {
-        environment = startThisIfNothingIsAlreadyRunning.get();
-        environment.assertIsValid();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      environment = startThisIfNothingIsAlreadyRunning.get();
+      environment.assertIsValid();
     }
     return environment;
   }

@@ -21,7 +21,6 @@ module Selenium
   module WebDriver
     module Firefox
       module Features
-
         FIREFOX_COMMANDS = {
           get_context: [:get, 'session/:session_id/moz/context'],
           set_context: [:post, 'session/:session_id/moz/context'],
@@ -30,17 +29,22 @@ module Selenium
           full_page_screenshot: [:get, 'session/:session_id/moz/screenshot/full']
         }.freeze
 
+        def command_list
+          FIREFOX_COMMANDS.merge(self.class::COMMANDS)
+        end
+
         def commands(command)
-          FIREFOX_COMMANDS[command] || self.class::COMMANDS[command]
+          command_list[command]
         end
 
         def install_addon(path, temporary)
-          if @file_detector
-            local_file = @file_detector.call(path)
-            path = upload(local_file) if local_file
-          end
+          addon = if File.directory?(path)
+                    Zipper.zip(path)
+                  else
+                    File.open(path, 'rb') { |crx_file| Base64.strict_encode64 crx_file.read }
+                  end
 
-          payload = {path: path}
+          payload = {addon: addon}
           payload[:temporary] = temporary unless temporary.nil?
           execute :install_addon, {}, payload
         end

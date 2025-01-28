@@ -17,7 +17,7 @@
 
 'use strict'
 
-const net = require('net')
+const net = require('node:net')
 
 /**
  * Tests if a port is free.
@@ -70,6 +70,7 @@ function findFreePort(opt_host) {
 }
 
 // PUBLIC API
-
-exports.findFreePort = findFreePort
-exports.isFree = isFree
+module.exports = {
+  findFreePort,
+  isFree,
+}

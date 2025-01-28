@@ -22,16 +22,7 @@
 
 'use strict'
 
-/**
- * Determines whether a {@code value} should be treated as a promise.
- * Any object whose "then" property is a function will be considered a promise.
- *
- * @param {?} value The value to test.
- * @return {boolean} Whether the value is a promise.
- */
-function isPromise(value) {
-  return Object.prototype.toString.call(value) === '[object Promise]'
-}
+const { isObject, isPromise } = require('./util')
 
 /**
  * Creates a promise that will be resolved at a set time in the future.
@@ -142,14 +133,12 @@ async function map(array, fn, self = undefined) {
   }
 
   const arr = /** @type {!Array} */ (v)
-  const n = arr.length
-  const values = new Array(n)
+  const values = []
 
-  for (let i = 0; i < n; i++) {
-    if (i in arr) {
-      values[i] = await Promise.resolve(fn.call(self, arr[i], i, arr))
-    }
+  for (const [index, item] of arr.entries()) {
+    values.push(await Promise.resolve(fn.call(self, item, index, arr)))
   }
+
   return values
 }
 
@@ -181,19 +170,15 @@ async function filter(array, fn, self = undefined) {
   }
 
   const arr = /** @type {!Array} */ (v)
-  const n = arr.length
   const values = []
-  let valuesLength = 0
 
-  for (let i = 0; i < n; i++) {
-    if (i in arr) {
-      const value = arr[i]
-      const include = await fn.call(self, value, i, arr)
-      if (include) {
-        values[valuesLength++] = value
-      }
+  for (const [index, item] of arr.entries()) {
+    const isConditionTrue = await Promise.resolve(fn.call(self, item, index, arr))
+    if (isConditionTrue) {
+      values.push(item)
     }
   }
+
   return values
 }
 
@@ -222,7 +207,7 @@ async function fullyResolved(value) {
     return fullyResolveKeys(/** @type {!Array} */ (value))
   }
 
-  if (value && typeof value === 'object') {
+  if (isObject(value)) {
     return fullyResolveKeys(/** @type {!Object} */ (value))
   }
 
@@ -260,14 +245,10 @@ async function fullyResolveKeys(obj) {
 
   const forEachKey = isArray ? forEachElement : forEachProperty
   await forEachKey(obj, async function (partialValue, key) {
-    if (
-      !Array.isArray(partialValue) &&
-      (!partialValue || typeof partialValue !== 'object')
-    ) {
+    if (!Array.isArray(partialValue) && (!partialValue || typeof partialValue !== 'object')) {
       return
     }
-    let resolvedValue = await fullyResolved(partialValue)
-    obj[key] = resolvedValue
+    obj[key] = await fullyResolved(partialValue)
   })
   return obj
 }

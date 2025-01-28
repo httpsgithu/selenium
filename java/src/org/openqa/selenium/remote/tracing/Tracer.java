@@ -23,4 +23,5 @@ public interface Tracer {
 
   Propagator getPropagator();
 
+  AttributeMap createAttributeMap();
 }

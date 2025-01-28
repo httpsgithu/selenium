@@ -21,7 +21,6 @@ module Selenium
   module WebDriver
     module DriverExtensions
       module HasCasting
-
         #
         # What devices ("sinks") are available to be cast to.
         #
@@ -50,6 +49,16 @@ module Selenium
 
         def start_cast_tab_mirroring(name)
           @bridge.start_cast_tab_mirroring(name)
+        end
+
+        #
+        # Starts a tab mirroring session on a specific receiver target.
+        #
+        # @param [String] name the sink to use as the target
+        #
+
+        def start_cast_desktop_mirroring(name)
+          @bridge.start_cast_desktop_mirroring(name)
         end
 
         #
